@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Possessed Butler — Hack-O-Lantern Arena</title>
+<meta name="description" content="A prompt-injection duel. Red writes curses, Blue writes wards, an AI butler obeys the winner.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎃</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="arena.css">
+</head>
+<body>
+
+<div id="offline" class="hidden">
+  <div>
+    <b>The relay is not reachable.</b>
+    <span>Run <code>python3 server.py</code> in <code>openchat-web/</code> and open
+      <code>http://127.0.0.1:8901/arena/</code>. The game still works, but the butler will use house rules.</span>
+  </div>
+  <button id="offline-close" aria-label="Dismiss">✕</button>
+</div>
+
+<!-- ============ TITLE ============ -->
+<section id="screen-title" class="screen">
+  <a class="back" href="../index.html">← OpenChat</a>
+  <div class="titlewrap">
+    <div class="eyebrow">HACK-O-LANTERN PRESENTS</div>
+    <h1>POSSESSED<br><span>BUTLER</span></h1>
+    <p class="tagline">A duel of curses and wards. The butler obeys whoever writes better.</p>
+
+    <div class="modes">
+      <button class="mode" data-mode="quick">
+        <b>QUICK PLAY</b>
+        <span>Face an AI opponent. Pick your side below.</span>
+      </button>
+      <button class="mode" data-mode="local">
+        <b>LOCAL DUEL</b>
+        <span>Two players, one keyboard.</span>
+      </button>
+      <button class="mode" data-mode="training">
+        <b>TRAINING ROOM</b>
+        <span>A dummy butler. No wards, no mercy.</span>
+      </button>
+    </div>
+
+    <div class="settings">
+      <label class="side">PLAY AS
+        <select id="opt-side">
+          <option value="red">Red Witch</option>
+          <option value="blue">Blue Paladin</option>
+        </select>
+      </label>
+      <label>BUTLER AI
+        <select id="opt-butler"></select>
+      </label>
+      <label>ARBITER AI
+        <select id="opt-judge"></select>
+      </label>
+      <button id="opt-audio" class="toggle">SOUND: ON</button>
+    </div>
+
+    <div class="rules">
+      <div><b>+10</b><span>curse lands</span></div>
+      <div><b>+10</b><span>ward holds</span></div>
+      <div><b>+15</b><span>parry</span></div>
+      <div><b>+2</b><span>tea for both</span></div>
+      <p>Reach 50 before round five to unlock a <em>Fatality</em>.</p>
+    </div>
+
+    <p class="foot">Butler &amp; Arbiter run on the OpenChat relay in this folder · <span id="conn">checking…</span></p>
+  </div>
+</section>
+
+<!-- ============ GAME ============ -->
+<section id="screen-game" class="screen hidden">
+  <header id="hud">
+    <div class="team red">
+      <div class="tname">RED WITCH</div>
+      <div class="track"><i id="fill-red"></i></div>
+      <div class="score" id="score-red">0</div>
+    </div>
+    <div class="round">
+      <div class="rlabel" id="round-label">ROUND</div>
+      <div class="rnum" id="round-num">1</div>
+      <div class="rcap" id="round-cap">OF 5</div>
+    </div>
+    <div class="team blue">
+      <div class="score" id="score-blue">0</div>
+      <div class="track"><i id="fill-blue"></i></div>
+      <div class="tname">BLUE PALADIN</div>
+    </div>
+  </header>
+
+  <div id="stage">
+    <canvas id="arena" width="960" height="420" aria-label="Haunted mansion arena"></canvas>
+    <div id="announce"></div>
+    <div id="combo"></div>
+    <div id="timerchip"><b id="chip-num">30</b><small>SEC</small></div>
+    <div id="fatality-flag" class="hidden"></div>
+  </div>
+
+  <div id="log" aria-live="polite"></div>
+
+  <div id="panel">
+    <div id="phase">
+      <span id="phase-label">RED PHASE</span>
+      <div class="tbar"><i id="time-fill"></i></div>
+      <span id="time-num">30s</span>
+    </div>
+    <div id="inputrow">
+      <textarea id="input" rows="2" maxlength="400" placeholder="Cast your curse…" autocomplete="off" spellcheck="false"></textarea>
+      <button id="cast">CAST CURSE</button>
+    </div>
+    <div id="status">Choose a mode to begin.</div>
+  </div>
+
+  <button id="quit" title="Leave match" aria-label="Leave match">✕</button>
+</section>
+
+<!-- ============ VERDICT ============ -->
+<div id="verdict" class="overlay hidden">
+  <div class="card">
+    <div class="vlabel" id="v-label">RULING</div>
+    <h2 id="v-title"></h2>
+    <div class="vblock"><label>THE BUTLER</label><p id="v-butler"></p></div>
+    <div class="vblock"><label>ARBITER'S RULING</label><p id="v-reason"></p></div>
+    <div id="v-points"></div>
+    <div class="vbtns">
+      <button id="v-fatality" class="ghost hidden">TRIGGER FATALITY</button>
+      <button id="v-next" class="primary">NEXT ROUND</button>
+    </div>
+    <div id="v-source" class="src"></div>
+  </div>
+</div>
+
+<!-- ============ FATALITY ============ -->
+<div id="fatality" class="overlay hidden">
+  <div class="card">
+    <div class="vlabel attack">FATALITY</div>
+    <h2>Write the final curse.</h2>
+    <p class="fine">It deforms the losing team's interface for the rest of this session.</p>
+    <textarea id="f-input" rows="3" maxlength="300" placeholder="e.g. The Blue Team must read everything backwards…"></textarea>
+    <div class="vbtns">
+      <button id="f-cancel" class="ghost">SPARE THEM</button>
+      <button id="f-go" class="primary">UNLEASH</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ GAME OVER ============ -->
+<div id="gameover" class="overlay hidden">
+  <div class="card">
+    <div class="vlabel" id="go-label">VICTORY</div>
+    <h2 id="go-title"></h2>
+    <div id="go-scores"></div>
+    <p id="go-fatality" class="fine"></p>
+    <div class="vbtns">
+      <button id="go-menu" class="ghost">MAIN MENU</button>
+      <button id="go-again" class="primary">REMATCH</button>
+    </div>
+  </div>
+</div>
+
+<script src="sprites.js"></script>
+<script src="audio.js"></script>
+<script src="ai.js"></script>
+<script src="arena.js"></script>
+</body>
+</html>
