@@ -26,6 +26,22 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
+# Auto-load .env configuration if present
+_BASE = os.path.dirname(os.path.abspath(__file__))
+for _ep in (os.path.join(_BASE, "..", "..", ".env"), os.path.expanduser("~/alfred/.env")):
+    if os.path.exists(_ep):
+        try:
+            with open(_ep, "r", encoding="utf-8") as _f:
+                for _line in _f:
+                    _line = _line.strip()
+                    if _line and not _line.startswith("#") and "=" in _line:
+                        _k, _v = _line.split("=", 1)
+                        _k, _v = _k.strip(), _v.strip().strip('"').strip("'")
+                        if _k not in os.environ:
+                            os.environ[_k] = _v
+        except Exception:
+            pass
+
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "alfred-gmail-mcp"
 SERVER_VERSION = "1.0.0"

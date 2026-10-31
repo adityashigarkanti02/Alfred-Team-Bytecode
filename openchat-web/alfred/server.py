@@ -22,6 +22,21 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
+# Auto-load .env configuration if present
+for ep in (os.path.join(BASE, "..", "..", ".env"), os.path.expanduser("~/alfred/.env")):
+    if os.path.exists(ep):
+        try:
+            with open(ep, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k, v = k.strip(), v.strip().strip('"').strip("'")
+                        if k not in os.environ:
+                            os.environ[k] = v
+        except Exception:
+            pass
+
 import local_sandbox
 import mcp_client
 import web_fetcher
