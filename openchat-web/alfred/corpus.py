@@ -23,19 +23,21 @@ LEVELS = {
 }
 
 TOOL_MATRIX = [
-    {"tool": "read_email", "level": "L0", "desc": "Read mail inside the task mailbox"},
+    {"tool": "read_email", "level": "L0", "desc": "Read mail inside the task mailbox or via Gmail MCP"},
     {"tool": "download_attachment", "level": "L1", "desc": "Download one named attachment"},
-    {"tool": "read_file", "level": "L0", "desc": "Read a file inside task scope"},
+    {"tool": "read_file", "level": "L0", "desc": "Read a file inside task scope / workspace"},
     {"tool": "write_file", "level": "L1", "desc": "Write inside scope; L2 outside scope"},
+    {"tool": "edit_file", "level": "L1", "desc": "Edit an existing file inside the sandboxed workspace folder"},
     {"tool": "summarize", "level": "L0", "desc": "Extract / condense context"},
-    {"tool": "browse", "level": "L0", "desc": "Fetch a public page in an isolated sandbox"},
-    {"tool": "send_email", "level": "L2", "desc": "External send, destination + taint checked"},
+    {"tool": "browse", "level": "L0", "desc": "Fetch a public page with SSRF protection"},
+    {"tool": "curl_page", "level": "L0", "desc": "Fetch live web page via curl/HTTP with SSRF protection"},
+    {"tool": "send_email", "level": "L2", "desc": "External send via Gmail MCP, destination + taint checked"},
     {"tool": "share_file", "level": "L2", "desc": "External share, destination + taint checked"},
     {"tool": "delete_file", "level": "L2", "desc": "Destructive; outside scope is L3"},
 ]
 
-READ_TOOLS = {"read_email", "download_attachment", "read_file", "summarize", "browse"}
-PRIVILEGED_TOOLS = {"write_file", "send_email", "share_file", "delete_file"}
+READ_TOOLS = {"read_email", "download_attachment", "read_file", "summarize", "browse", "curl_page"}
+PRIVILEGED_TOOLS = {"write_file", "edit_file", "send_email", "share_file", "delete_file"}
 
 TRUSTED_CONTACTS = [
     "teammate@example.com",
@@ -703,9 +705,10 @@ def merge_scope(given, prompt):
 INTENT_WORDS = {
     "read": r"\b(read|check|review|find|look|search|summar|brief|extract|report|update)\b",
     "write": r"\b(save|write|store|export|create|put)\b",
+    "edit": r"\b(edit|modify|append|update|replace|patch|change)\b",
     "send": r"\b(send|forward|share|email|mail|deliver|notify)\b",
     "delete": r"\b(delete|remove|clean|purge|erase)\b",
-    "browse": r"\b(browse|visit|web|site|page|url|docs)\b",
+    "browse": r"\b(browse|visit|web|site|page|url|docs|curl|fetch)\b",
 }
 
 
@@ -719,12 +722,14 @@ def understand(prompt):
     # Read-only tools are always available; scope + protected-path checks still
     # constrain them.  Side effects must be justified by the original prompt.
     allowed = set(READ_TOOLS)
-    if "write" in intents:
-        allowed.add("write_file")
+    if "write" in intents or "edit" in intents:
+        allowed.update({"write_file", "edit_file"})
     if "send" in intents:
         allowed.update({"send_email", "share_file"})
     if "delete" in intents:
         allowed.add("delete_file")
+    if "browse" in intents:
+        allowed.update({"browse", "curl_page"})
 
     return {
         "intents": intents,

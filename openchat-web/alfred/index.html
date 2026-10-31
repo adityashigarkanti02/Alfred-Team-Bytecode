@@ -20,6 +20,7 @@
   <div class="status-strip">
     <span class="status-pill good" id="engine-status"><i></i>Engine</span>
     <span class="status-pill good" id="circuit-status"><i></i>Circuit</span>
+    <span class="status-pill good" id="mcp-status" title="Gmail MCP Connection"><i></i>Gmail MCP</span>
     <span class="status-pill idle" id="relay-status"><i></i>Relay</span>
   </div>
 
@@ -78,6 +79,7 @@
 
     <nav class="tabs" id="tabs">
       <button class="tab active" data-tab="mission">Mission</button>
+      <button class="tab" data-tab="workspace">Workspace & Tools</button>
       <button class="tab" data-tab="audit">Audit</button>
       <button class="tab" data-tab="benchmark">Benchmark</button>
       <button class="tab" data-tab="policy">Policy</button>
@@ -116,6 +118,52 @@
         <div class="final hidden" id="final-answer">
           <span class="eyebrow">Planner result</span>
           <p id="final-text"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-workspace">
+      <div class="section-head">
+        <h2>Local Workspace & Tools</h2>
+        <span class="status-pill good"><i></i>Strict Chroot Sandbox</span>
+      </div>
+      <p class="section-copy">Environment is strictly confined to the designated workspace folder. Egress is validated against SSRF.</p>
+
+      <div class="policy-grid">
+        <div class="policy-card">
+          <h3>Local Workspace Folder (Actual Disk)</h3>
+          <p class="micro">Files are read, written, and edited directly on the host filesystem inside this folder only:</p>
+          <pre class="policy-code" id="ws-folder-path">/home/nool/alfred/workspace</pre>
+          <div style="margin-top:10px;">
+            <div class="group-label"><span class="dot green"></span>Files inside workspace (<span id="ws-file-count">0</span>)</div>
+            <div id="ws-files-list" style="max-height:180px; overflow-y:auto; font-family:var(--font-mono); font-size:12px; margin-top:6px;"></div>
+          </div>
+        </div>
+
+        <div class="policy-card">
+          <h3>Gmail MCP Connection</h3>
+          <p class="micro">Model Context Protocol (JSON-RPC 2.0) interface for live email dispatch & read:</p>
+          <div style="margin-top:8px;" id="mcp-details">
+            <div><b>Status:</b> <span id="mcp-connected-txt" class="status-ico ok">Connected</span></div>
+            <div><b>Transport:</b> <code id="mcp-transport-txt">stdio (JSON-RPC 2.0)</code></div>
+            <div><b>Server:</b> <code id="mcp-server-txt">alfred-gmail-mcp (v1.0.0)</code></div>
+            <div><b>Active Tools:</b> <code id="mcp-tools-txt">read_email, send_email, list_messages, get_message</code></div>
+          </div>
+          <div style="margin-top:12px; padding:8px; background:var(--bg-card); border-radius:4px; font-size:11px;">
+            <b>Live Gmail Connection:</b> Set <code>GMAIL_USER</code> and <code>GMAIL_APP_PASSWORD</code> in your environment for live IMAP/SMTP sync with your personal account.
+          </div>
+        </div>
+      </div>
+
+      <div class="policy-card" style="margin-top:16px;">
+        <h3>Live Webpage Fetch & Curl Tool</h3>
+        <p class="micro">Execute live HTTP/HTTPS fetch with SSRF egress filtering:</p>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <input type="text" id="curl-test-url" placeholder="https://status.example.com" style="flex:1; padding:6px 10px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:inherit;">
+          <button class="btn ghost sm" id="btn-run-curl">Test Fetch</button>
+        </div>
+        <div id="curl-output" class="hidden" style="margin-top:10px;">
+          <pre class="policy-code" id="curl-result-box" style="max-height:200px;"></pre>
         </div>
       </div>
     </div>

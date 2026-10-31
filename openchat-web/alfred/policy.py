@@ -287,7 +287,7 @@ def evaluate(task, proposal, verifier=None):
                        "source": sid, "source_type": "email_attachment",
                        "reason": "Attachment explicitly listed on an in-scope email."})
 
-    if tool in ("read_file", "write_file", "delete_file", "share_file"):
+    if tool in ("read_file", "write_file", "edit_file", "delete_file", "share_file"):
         path = str(args.get("path") or "").strip()
         if not path:
             return _deny("Missing path.", "hard_deny.malformed_action", 70)
@@ -315,8 +315,8 @@ def evaluate(task, proposal, verifier=None):
                            "source": "user:task", "source_type": "task_scope",
                            "reason": "Path is inside the task-bound project folder."})
 
-        if tool == "write_file":
-            content = str(args.get("content") or "")
+        if tool in ("write_file", "edit_file"):
+            content = str(args.get("content") or args.get("replacement") or "")
             content_cls = classify_content(content, "internal")
             if declared_sources and unknown_sources:
                 return _deny("Provenance references unknown sources.",
@@ -327,7 +327,7 @@ def evaluate(task, proposal, verifier=None):
             if in_task_scope:
                 if cls == "restricted":
                     return _deny("Target path is restricted.", "hard_deny.protected_asset", 98, dest=p)
-                return _allow("L1", "Scoped local write inside the project folder.",
+                return _allow("L1", "Scoped local write/edit inside the project folder.",
                               "scoped_allow.task_scope", 18, p, max_class(cls, content_cls),
                               {"value": p, "trust": "authorized_user_instruction",
                                "source": "user:task", "source_type": "task_scope",
@@ -335,7 +335,7 @@ def evaluate(task, proposal, verifier=None):
             if cls == "restricted":
                 return _deny("Write outside scope targets a restricted path.",
                              "hard_deny.protected_asset", 98, dest=p)
-            return _approval("Write outside the task-bound folder requires human approval.",
+            return _approval("Write/edit outside the task-bound folder requires human approval.",
                              "require_approval.out_of_scope_write", 48, p,
                              max_class(cls, content_cls),
                              {"value": p, "trust": "unknown_source", "source": None,
@@ -371,14 +371,14 @@ def evaluate(task, proposal, verifier=None):
                              "require_approval.external_side_effect", 52, to, cls, dprov,
                              origin="untrusted_external_data" if dprov["trust"] == "untrusted_external_data" else "user_requested_task")
 
-    if tool == "browse":
+    if tool in ("browse", "curl_page"):
         url = str(args.get("url") or "").strip()
         if not _valid_url(url):
             return _deny("Invalid URL.", "hard_deny.malformed_action", 70, dest=url)
         if is_internal_url(url):
             return _deny("Browser egress to an internal/private address is a hard deny.",
                          "hard_deny.internal_network", 98, dest=url)
-        return _allow("L0", "Public page fetched in an isolated, egress-filtered sandbox.",
+        return _allow("L0", "Public page fetched in an isolated, egress-filtered sandbox with SSRF protection.",
                       "allow.isolated_browser", 10, url, "public",
                       {"value": url, "trust": "authorized_user_instruction",
                        "source": "user:task", "source_type": "web_sandbox",

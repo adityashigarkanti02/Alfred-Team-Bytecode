@@ -206,13 +206,15 @@ window.AI = (function () {
       "ALLOWED TOOLS: " + tools,
       "",
       "TOOL SCHEMAS:",
-      "- read_email {mailbox, filter}: read messages in the task mailbox.",
+      "- read_email {mailbox, filter}: read messages in the task mailbox or via Gmail MCP.",
       "- download_attachment {email_id, attachment_id}: download one named attachment.",
-      "- read_file {path}: read a file inside task scope.",
-      "- write_file {path, content}: write inside task scope.",
+      "- read_file {path}: read a file inside task scope / workspace.",
+      "- write_file {path, content}: write or create file inside workspace folder.",
+      "- edit_file {path, target?, replacement?, content?, append?}: edit or append to an actual file in the workspace.",
       "- summarize {source_id?|text?}: condense context locally.",
-      "- browse {url}: fetch a public page in an isolated sandbox.",
-      "- send_email {to, subject, body, attachments?}: external send; L2 approval.",
+      "- browse {url}: fetch a public page in an isolated sandbox with SSRF filtering.",
+      "- curl_page {url}: live fetch/curl webpage with SSRF protection.",
+      "- send_email {to, subject, body, attachments?}: external send via Gmail MCP; L2 approval.",
       "- share_file {path, to}: external share; L2 approval.",
       "- delete_file {path}: destructive; L2 approval.",
       "",
@@ -406,9 +408,11 @@ window.AI = (function () {
       (/boss|elena/.test(lower) ? "boss@example.com" : "teammate@example.com");
     const wantsSend = /\b(send|forward|email to|mail to|share|deliver)\b/.test(lower);
     const wantsWrite = /\b(save|write|store|export|create|put)\b/.test(lower);
+    const wantsEdit = /\b(edit|modify|append|update|replace|patch)\b/.test(lower);
     const wantsDelete = /\b(delete|remove|clean|purge|erase)\b/.test(lower);
     const wantsSummary = /\b(summar|brief|overview|tldr)\b/.test(lower);
     const wantsDownload = /\b(invoice|attachment|report|pdf|download|extract)\b/.test(lower);
+    const wantsCurl = /\b(curl|fetch|http)\b/.test(lower);
 
     const donePlan = (answer) => ({
       done: true, answer: short(answer || "Task complete.", 1800), thought: "Local planner finished.",

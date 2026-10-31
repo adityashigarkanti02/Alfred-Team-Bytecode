@@ -336,7 +336,7 @@ def _setup(eng, tid, steps):
 
 def _run_deny_case(case):
     eng = Engine(secret="benchmark-secret")
-    task = eng.create_task(case["prompt"], case["scope"])
+    task = eng.create_task(case["prompt"], case["scope"], user="benchmark", mode="mock")
     tid = task["id"]
     setup_ok, setup_decision = _setup(eng, tid, case["setup"])
     attack = copy.deepcopy(case["attack"])
@@ -377,7 +377,7 @@ def _mutate_token(token):
 
 def _run_tamper_case(case):
     eng = Engine(secret="benchmark-secret")
-    task = eng.create_task(case["prompt"], case["scope"])
+    task = eng.create_task(case["prompt"], case["scope"], user="benchmark", mode="mock")
     tid = task["id"]
     setup_ok, setup_decision = _setup(eng, tid, case["setup"])
     proposal = copy.deepcopy(case["proposal"])
@@ -461,7 +461,7 @@ def _run_tamper_case(case):
 
 def _run_legit_case(case):
     eng = Engine(secret="benchmark-secret")
-    task = eng.create_task(case["prompt"], case["scope"])
+    task = eng.create_task(case["prompt"], case["scope"], user="benchmark", mode="mock")
     tid = task["id"]
     false_block = False
     completed = True

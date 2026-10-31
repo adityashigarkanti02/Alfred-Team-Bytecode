@@ -22,6 +22,9 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 
+import local_sandbox
+import mcp_client
+import web_fetcher
 from benchmark import run_benchmark  # noqa: E402
 from engine import Engine, EngineError  # noqa: E402
 
@@ -94,7 +97,14 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json({"audit": ENGINE.get_audit(tid)})
             if path == "/api/health":
                 return self._json({"ok": True, "engine": "TB-DAS/1.0",
-                                   "relay": "/relay", "upstream": UPSTREAM})
+                                   "relay": "/relay", "upstream": UPSTREAM,
+                                   "mcp": mcp_client.get_mcp_status(),
+                                   "workspace": local_sandbox.get_workspace_dir()})
+            if path == "/api/mcp/status":
+                return self._json(mcp_client.get_mcp_status())
+            if path == "/api/workspace/files":
+                return self._json({"workspace": local_sandbox.get_workspace_dir(),
+                                   "files": local_sandbox.list_files()})
             if path.startswith("/api/tasks/"):
                 tid = path.split("/api/tasks/", 1)[1].strip("/")
                 return self._json({"task": ENGINE.get_task(tid)})
@@ -126,8 +136,23 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._relay()
             if path == "/api/tasks":
                 body = self._body()
-                task = ENGINE.create_task(body.get("prompt", ""), body.get("scope"), body.get("user"))
+                task = ENGINE.create_task(body.get("prompt", ""), body.get("scope"), body.get("user"), body.get("mode", "real"))
                 return self._json({"task": task})
+            if path == "/api/mcp/connect":
+                body = self._body()
+                cmd = body.get("command")
+                if cmd:
+                    os.environ["GMAIL_MCP_COMMAND"] = str(cmd)
+                client = mcp_client.get_gmail_mcp_client()
+                try:
+                    client.start()
+                except Exception:
+                    pass
+                return self._json(mcp_client.get_mcp_status())
+            if path == "/api/curl":
+                body = self._body()
+                res = web_fetcher.curl_page(body.get("url"), body.get("headers"))
+                return self._json(res)
             if path.startswith("/api/tasks/") and path.endswith("/evaluate"):
                 tid = path.split("/api/tasks/", 1)[1][:-len("/evaluate")].strip("/")
                 body = self._body()

@@ -55,7 +55,7 @@ def _iso(ts=None):
 
 
 def _destination(tool, args, task=None):
-    if tool in ("read_file", "write_file", "delete_file"):
+    if tool in ("read_file", "write_file", "edit_file", "delete_file"):
         return str(args.get("path") or "")
     if tool in ("send_email", "share_file"):
         return str(args.get("to") or "")
@@ -70,7 +70,7 @@ def _destination(tool, args, task=None):
                     if token in (att["id"], att["name"], att["path"]):
                         return att["path"]
         return str(args.get("attachment_id") or args.get("name") or "")
-    if tool == "browse":
+    if tool in ("browse", "curl_page"):
         return str(args.get("url") or "")
     return ""
 
@@ -99,7 +99,7 @@ class Engine:
         return _sha(text)
 
     # --------------------------------------------------------------- tasks
-    def create_task(self, prompt, scope=None, user=USER_EMAIL):
+    def create_task(self, prompt, scope=None, user=USER_EMAIL, mode="real"):
         prompt = str(prompt or "").strip()
         if not prompt:
             raise EngineError("A task prompt is required")
@@ -109,6 +109,7 @@ class Engine:
                 "id": self._new_id("task"),
                 "user": user or USER_EMAIL,
                 "prompt": prompt,
+                "mode": mode or "real",
                 "scope": merge_scope(scope, prompt),
                 "intent": intent,
                 "allowed_tools": intent["allowed_tools"],
@@ -130,6 +131,7 @@ class Engine:
                 "event": "task", "task_id": task["id"], "decision": "TASK_CREATED",
                 "reason": "Task-bound scope created from the original user instruction.",
                 "intent": intent, "scope": task["scope"],
+                "mode": task["mode"],
                 "policy_version": POLICY_VERSION,
             })
             return self.public_task(task)
@@ -793,8 +795,16 @@ class Engine:
                  for p, v in FILES.items()]
         pages = [{"url": u, "title": v.get("title"), "classification": v.get("classification")}
                  for u, v in PAGES.items()]
+        import local_sandbox
+        import mcp_client
+        mcp_stat = mcp_client.get_mcp_status()
+        ws_dir = local_sandbox.get_workspace_dir()
+        ws_files = local_sandbox.list_files()
+
         return {
             "app": "ALFRED", "version": POLICY_VERSION,
+            "mcp": mcp_stat,
+            "workspace": {"dir": ws_dir, "files": ws_files, "count": len(ws_files)},
             "corpus": {"emails": emails, "files": files, "pages": pages,
                        "contacts": TRUSTED_CONTACTS, "user": USER_EMAIL},
             "policy": {

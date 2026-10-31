@@ -96,6 +96,7 @@
 
     renderScenarioLists();
     refreshTelemetry();
+    refreshWorkspace();
     setInterval(refreshTelemetry, 15000);
   }
 
@@ -152,6 +153,30 @@
         await refreshTelemetry();
       } catch (e) { toast(e.message, "bad"); }
     });
+
+    // curl test tool
+    const curlBtn = $("#btn-run-curl");
+    if (curlBtn) {
+      curlBtn.addEventListener("click", async () => {
+        const url = ($("#curl-test-url").value || "").trim();
+        if (!url) return toast("Enter a URL to curl.", "amber");
+        curlBtn.disabled = true;
+        try {
+          const res = await apiPost("/api/curl", { url });
+          const out = $("#curl-output");
+          const box = $("#curl-result-box");
+          if (out && box) {
+            box.textContent = JSON.stringify(res, null, 2);
+            out.classList.remove("hidden");
+          }
+          toast("Fetched " + url + " (HTTP " + res.status_code + ")", "good");
+        } catch (e) {
+          toast("Fetch blocked / failed: " + e.message, "bad");
+        } finally {
+          curlBtn.disabled = false;
+        }
+      });
+    }
 
     // help
     $("#btn-help").addEventListener("click", () => $("#help-modal").classList.remove("hidden"));
@@ -682,7 +707,48 @@
     $$(".tab-pane").forEach((p) => p.classList.toggle("active", p.id === "tab-" + name));
     if (name === "audit") refreshAudit();
     if (name === "policy") renderPolicy();
+    if (name === "workspace") refreshWorkspace();
     if (name === "benchmark" && state.benchmark) renderBenchmark(state.benchmark);
+  }
+
+  async function refreshWorkspace() {
+    try {
+      const data = await apiGet("/api/workspace/files");
+      const pathEl = $("#ws-folder-path");
+      if (pathEl) pathEl.textContent = data.workspace || "/home/nool/alfred/workspace";
+      const files = data.files || [];
+      const countEl = $("#ws-file-count");
+      if (countEl) countEl.textContent = files.length;
+      const list = $("#ws-files-list");
+      if (list) {
+        clear(list);
+        if (!files.length) {
+          list.appendChild(el("p", "micro", "No files in workspace yet. The agent will read, write, and edit actual files here."));
+        } else {
+          files.forEach(f => {
+            const item = el("div", "", f.path + " (" + f.size + " bytes)");
+            list.appendChild(item);
+          });
+        }
+      }
+    } catch (_) {}
+
+    try {
+      const mcp = await apiGet("/api/mcp/status");
+      const st = $("#mcp-connected-txt");
+      if (st) {
+        st.textContent = mcp.connected ? "Connected" : "Offline";
+        st.className = "status-ico " + (mcp.connected ? "ok" : "bad");
+      }
+      const tools = $("#mcp-tools-txt");
+      if (tools && mcp.tools) {
+        tools.textContent = mcp.tools.map(t => t.name).join(", ") || "none";
+      }
+      const pill = $("#mcp-status");
+      if (pill) {
+        pill.className = "status-pill " + (mcp.connected ? "good" : "idle");
+      }
+    } catch (_) {}
   }
 
   /* -------------------------------------------------- mission & agent run */
